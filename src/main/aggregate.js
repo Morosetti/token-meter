@@ -56,6 +56,44 @@ function weekStart(settings, now) {
   return now - 7 * DAY; // rolling
 }
 
+/**
+ * Lower bounds on the real limits, inferred from history alone.
+ *
+ * The inference: if a 5-hour block ran to completion with X consumed and you
+ * were never cut off, the real 5h limit is at least X. Same for any trailing
+ * 7-day span. Both are therefore safe floors for the budget — they can only be
+ * under the truth, never over it — which is what lets calibration happen
+ * without ever touching an account.
+ *
+ * The open block is excluded: it has not finished, so it proves nothing yet,
+ * and leaving it out lets the current session legitimately read above 100% when
+ * you are past anything you have done before.
+ */
+function observedMaxima(entries, blocks, active, overrides) {
+  const costs = entries.map((e) => costOf(e, overrides));
+  const index = new Map(entries.map((e, i) => [e, i]));
+
+  let maxSession = 0;
+  for (const block of blocks) {
+    if (block === active) continue;
+    let c = 0;
+    for (const e of block.entries) c += costs[index.get(e)] ?? costOf(e, overrides);
+    if (c > maxSession) maxSession = c;
+  }
+
+  // Exact maximum of the trailing-7d total, as a sliding window over entries
+  // (which are already time-sorted). O(n), and it catches peaks that a daily
+  // sampling grid would step straight over.
+  let maxWeek = 0, sum = 0, lo = 0;
+  for (let hi = 0; hi < entries.length; hi++) {
+    sum += costs[hi];
+    while (entries[lo].t <= entries[hi].t - 7 * DAY) sum -= costs[lo++];
+    if (sum > maxWeek) maxWeek = sum;
+  }
+
+  return { maxSession, maxWeek };
+}
+
 function topN(map, n, key = 'cost') {
   return [...map.entries()]
     .map(([name, v]) => ({ name, ...v }))
@@ -66,12 +104,15 @@ function topN(map, n, key = 'cost') {
 /** Everything the UI needs, computed in one pass. */
 function summarize(entries, settings, now = Date.now()) {
   const ov = settings.priceOverrides;
-  const b = budgets(settings);
 
   const blocks = sessionBlocks(entries, settings.sessionHours || SESSION_HOURS);
   const active = blocks.length && now < blocks[blocks.length - 1].end
     ? blocks[blocks.length - 1]
     : null;
+
+  // Budgets depend on what history proves, so the maxima come first.
+  const observed = observedMaxima(entries, blocks, active, ov);
+  const b = budgets(settings, observed);
 
   const session = blank();
   if (active) for (const e of active.entries) add(session, e, ov);
@@ -140,7 +181,9 @@ function summarize(entries, settings, now = Date.now()) {
     byProject: topN(byProject, 6),
     sparkline,
     entryCount: entries.length,
+    observed,
+    autoRaised: b.auto,
   };
 }
 
-module.exports = { summarize, sessionBlocks, weekStart, blank };
+module.exports = { summarize, sessionBlocks, weekStart, blank, observedMaxima };

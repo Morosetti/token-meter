@@ -86,9 +86,11 @@
     sparkline(u.sparkline);
 
     const k = settings.calibration || 1;
-    $('foot').textContent = k === 1
-      ? 'Estimativa dos transcripts locais'
-      : 'Calibrado ×' + k.toFixed(2);
+    const raised = u.autoRaised && (u.autoRaised.session || u.autoRaised.week);
+    const parts = [];
+    if (raised) parts.push('Auto-calibrado pelo seu historico');
+    if (k !== 1) parts.push('fator ×' + k.toFixed(2));
+    $('foot').textContent = parts.length ? parts.join(' · ') : 'Estimativa dos transcripts locais';
   }
 
   async function boot() {

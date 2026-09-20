@@ -1,7 +1,7 @@
 {
   "name": "token-meter",
   "productName": "TokenMeter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Medidor de uso de tokens (diario e semanal) na bandeja do sistema.",
   "main": "src/main/index.js",
   "license": "MIT",
@@ -27,14 +27,23 @@
   "build": {
     "appId": "io.github.morosetti.tokenmeter",
     "productName": "TokenMeter",
-    "directories": { "output": "release" },
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "src/**/*",
       "assets/icon.png",
       "package.json"
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icon.png"
     },
     "nsis": {
@@ -47,7 +56,9 @@
       "runAfterFinish": true
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools",
       "extendInfo": {
@@ -55,7 +66,9 @@
       }
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "assets/icon.png",
       "category": "Utility"
     }

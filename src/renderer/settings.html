@@ -124,10 +124,19 @@
     <input type="number" id="customWeek" min="1" step="5" aria-label="Orcamento semanal">
   </div>
 
+  <div class="field">
+    <label for="autoCalibrate">Calibracao automatica
+      <span class="hint">Se voce consumiu um valor numa janela e nao foi bloqueado, o limite
+      real e no minimo aquele valor. O orcamento sobe sozinho ate o seu maior consumo ja
+      registrado. So aumenta &mdash; nunca inventa um limite menor do que ja aconteceu.</span>
+    </label>
+    <button class="sw" id="autoCalibrate" role="switch" aria-checked="false"></button>
+  </div>
+
   <div class="callout">
-    <p><strong>Calibrar.</strong> Estes numeros sao estimativa: os limites reais ficam no
-    servidor. Abra o app oficial, veja a porcentagem que ele mostra e
-    digite aqui &mdash; o orcamento se reajusta para bater com ele.</p>
+    <p><strong>Calibrar na mao.</strong> A automatica so consegue descobrir um piso.
+    Para cravar o numero exato: abra o app oficial, veja a porcentagem que ele mostra
+    e digite aqui &mdash; o orcamento se reajusta para bater com ele.</p>
     <div class="row">
       <select id="calScope" aria-label="Qual janela calibrar">
         <option value="session">Sessao 5h</option>

@@ -6,7 +6,8 @@ const { app } = require('electron');
 const DEFAULTS = {
   // plan / calibration
   plan: 'max5',                 // pro | max5 | max20 | custom
-  calibration: 1,               // scales the budget; 1 = use the built-in estimate
+  autoCalibrate: true,          // raise the budget to whatever history proves you reached
+  calibration: 1,               // manual factor; 1 = use the built-in estimate
   customSession: 30,
   customWeek: 350,
   sessionHours: 5,

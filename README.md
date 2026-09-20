@@ -32,11 +32,35 @@ vivem no servidor e **não existem em disco**, então este app não consegue lê
 O que ele faz é estimar: precifica cada registro pelas tarifas da API e compara
 esse "valor equivalente consumido" com um orçamento por plano.
 
-Na prática:
+### Calibração automática
 
-- A porcentagem é **estimativa**. Use a **calibração** (Configurações → Plano):
-  digite a porcentagem que o app oficial está mostrando e o orçamento se
-  reajusta para bater com ela.
+O orçamento se corrige sozinho, a partir de uma inferência que não precisa de
+credencial nenhuma:
+
+> Se uma janela de 5h terminou com X consumido e você **não** foi bloqueado,
+> então o limite real é no mínimo X.
+
+Ou seja, o seu próprio histórico prova um piso para o limite. O app calcula o
+maior bloco de 5h já completado e a maior janela de 7 dias já ocorrida, e eleva
+o orçamento até lá quando o padrão do plano é menor. Isso **só aumenta** — nunca
+inventa um limite menor do que já aconteceu, porque isso seria matematicamente
+impossível.
+
+O efeito é que escolher o plano errado deixa de importar muito: com o padrão do
+Pro num histórico pesado a leitura ia a 492%, e a calibração automática traz
+para 45% sem nenhuma intervenção.
+
+O que ela **não** consegue é achar o teto. Ela converge para o limite por baixo,
+então enquanto você nunca chegou perto do limite, o orçamento fica conservador e
+a porcentagem lida um pouco alta. Para cravar o número exato, use a calibração
+manual abaixo.
+
+### Na prática
+
+- A porcentagem é **estimativa**. Para cravar: **Configurações → Plano →
+  Calibrar na mão** — digite a porcentagem que o app oficial está mostrando e o
+  orçamento se reajusta para bater com ela. A automática continua valendo como
+  piso, porque um piso comprovado nunca pode estar errado.
 - Só conta uso da **CLI**. Conversas na web ou no app desktop não aparecem,
   porque não geram transcript local.
 - Os valores em dólar são **equivalência de API**, não o que você paga. Numa

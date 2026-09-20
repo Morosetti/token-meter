@@ -7,7 +7,7 @@
   const SELECTS = ['plan', 'weekMode', 'badgeMetric', 'badgeStyle', 'theme'];
   const NUMBERS = ['customSession', 'customWeek', 'refreshSeconds', 'warnAt', 'dangerAt', 'weekResetHour'];
   const SWITCHES = [
-    'badgeShowNumber', 'overlayEnabled', 'overlayCompact',
+    'autoCalibrate', 'badgeShowNumber', 'overlayEnabled', 'overlayCompact',
     'overlayAlwaysOnTop', 'overlayClickThrough', 'launchAtLogin',
   ];
 
@@ -32,9 +32,12 @@
     if (latest) {
       const scope = $('calScope').value;
       const m = scope === 'session' ? latest.session : latest.week;
+      const raised = latest.autoRaised && latest.autoRaised[scope];
+      const obs = latest.observed && (scope === 'session' ? latest.observed.maxSession : latest.observed.maxWeek);
       $('calNow').textContent =
         'Agora: ' + m.pct + '%  (' + usd(m.cost) + ' de ' + usd(m.budget) + ')'
-        + (k === 1 ? '  ·  sem calibracao' : '  ·  fator ×' + k.toFixed(2));
+        + (raised ? '  ·  orcamento elevado pelo seu maximo de ' + usd(obs) : '')
+        + (k === 1 ? '' : '  ·  fator ×' + k.toFixed(2));
     } else {
       $('calNow').textContent = k === 1 ? 'Sem calibracao aplicada' : 'Fator ×' + k.toFixed(2);
     }
