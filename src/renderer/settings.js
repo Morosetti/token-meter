@@ -7,7 +7,8 @@
   const SELECTS = ['plan', 'weekMode', 'badgeMetric', 'badgeStyle', 'theme'];
   const NUMBERS = ['customSession', 'customWeek', 'refreshSeconds', 'warnAt', 'dangerAt', 'weekResetHour'];
   const SWITCHES = [
-    'autoCalibrate', 'badgeShowNumber', 'overlayEnabled', 'overlayCompact',
+    'autoCalibrate', 'officialSource', 'officialCalibrate',
+    'badgeShowNumber', 'overlayEnabled', 'overlayCompact',
     'overlayAlwaysOnTop', 'overlayClickThrough', 'launchAtLogin',
   ];
 
@@ -75,6 +76,23 @@
     settings = await window.usage.calibrate($('calScope').value, pct);
     $('calPct').value = '';
     paint();
+  });
+
+  $('officialTest').addEventListener('click', async () => {
+    const out = $('officialStatus');
+    out.textContent = 'consultando...';
+    out.style.color = 'var(--faint)';
+    const r = await window.usage.testOfficial();
+    if (r.ok) {
+      const bits = [];
+      if (r.session) bits.push('5h ' + r.session.pct + '%');
+      if (r.week) bits.push('semana ' + r.week.pct + '%');
+      out.textContent = 'OK · ' + bits.join('  ·  ');
+      out.style.color = 'var(--ok)';
+    } else {
+      out.textContent = r.error;
+      out.style.color = 'var(--danger)';
+    }
   });
 
   $('reset').addEventListener('click', async () => {

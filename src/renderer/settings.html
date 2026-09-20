@@ -150,6 +150,35 @@
     <div class="now" id="calNow"></div>
   </div>
 
+  <h2>Fonte oficial &mdash; avancado</h2>
+  <div class="callout">
+    <p>Busca a porcentagem <strong>real</strong> no servidor, usando o login que a CLI
+    ja guardou nesta maquina. E o unico jeito de ter o numero exato &mdash; ele nao
+    existe em disco.</p>
+    <p><strong>Riscos.</strong> O endpoint nao e documentado e pode sumir em qualquer
+    atualizacao. O app le sua credencial de login apenas para esta requisicao, nunca a
+    grava nem a envia para outro lugar, e nunca escreve no arquivo. Se ela expirar, o
+    app avisa e volta para a estimativa &mdash; renove rodando a CLI uma vez.</p>
+    <div class="row">
+      <button class="btn" id="officialTest">Testar conexao</button>
+      <span class="now" id="officialStatus" style="margin:0"></span>
+    </div>
+  </div>
+  <div class="field">
+    <label for="officialSource">Usar a fonte oficial
+      <span class="hint">Consulta no maximo uma vez por minuto. Qualquer falha cai de
+      volta na estimativa local, sem interromper nada.</span>
+    </label>
+    <button class="sw" id="officialSource" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label for="officialCalibrate">Calibrar a estimativa com ela
+      <span class="hint">Uma consulta bem-sucedida ajusta a estimativa local de vez. Se o
+      endpoint quebrar depois, seus numeros continuam certos em vez de voltar ao chute.</span>
+    </label>
+    <button class="sw" id="officialCalibrate" role="switch" aria-checked="false"></button>
+  </div>
+
   <div class="field">
     <label for="weekMode">Janela semanal</label>
     <select id="weekMode">

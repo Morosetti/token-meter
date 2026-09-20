@@ -85,12 +85,24 @@
     rows($('projects'), u.byProject, u.week.cost, 'wide');
     sparkline(u.sparkline);
 
+    // The footer says where the percentages came from, because "official" and
+    // "estimated" are different enough that the reader should never wonder.
     const k = settings.calibration || 1;
     const raised = u.autoRaised && (u.autoRaised.session || u.autoRaised.week);
-    const parts = [];
-    if (raised) parts.push('Auto-calibrado pelo seu historico');
-    if (k !== 1) parts.push('fator ×' + k.toFixed(2));
-    $('foot').textContent = parts.length ? parts.join(' · ') : 'Estimativa dos transcripts locais';
+    let text;
+    if (u.source === 'official') {
+      text = 'Numeros oficiais do servidor';
+    } else if (u.source === 'official-stale') {
+      text = 'Oficial (desatualizado) · ' + (u.officialError || 'sem conexao');
+    } else {
+      const parts = [];
+      if (u.officialError) parts.push('Oficial falhou: ' + u.officialError);
+      else if (raised) parts.push('Auto-calibrado pelo seu historico');
+      if (k !== 1) parts.push('fator ×' + k.toFixed(2));
+      text = parts.length ? parts.join(' · ') : 'Estimativa dos transcripts locais';
+    }
+    $('foot').textContent = text;
+    $('foot').style.color = u.officialError ? 'var(--warn)' : '';
   }
 
   async function boot() {

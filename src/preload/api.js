@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('usage', {
   settingsSet: (patch) => ipcRenderer.invoke('settings:set', patch),
   settingsReset: () => ipcRenderer.invoke('settings:reset'),
   calibrate: (scope, observedPct) => ipcRenderer.invoke('settings:calibrate', { scope, observedPct }),
+  testOfficial: () => ipcRenderer.invoke('official:test'),
 
   openSettings: () => ipcRenderer.send('window:settings'),
   closeSelf: () => ipcRenderer.send('window:close-self'),

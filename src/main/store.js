@@ -7,6 +7,11 @@ const DEFAULTS = {
   // plan / calibration
   plan: 'max5',                 // pro | max5 | max20 | custom
   autoCalibrate: true,          // raise the budget to whatever history proves you reached
+
+  // Opt-in: ask the server for the real numbers using the CLI's stored token.
+  // Undocumented endpoint, so it is off unless the user turns it on.
+  officialSource: false,
+  officialCalibrate: true,      // let a successful fetch calibrate the estimate
   calibration: 1,               // manual factor; 1 = use the built-in estimate
   customSession: 30,
   customWeek: 350,

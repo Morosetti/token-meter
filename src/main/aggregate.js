@@ -183,7 +183,51 @@ function summarize(entries, settings, now = Date.now()) {
     entryCount: entries.length,
     observed,
     autoRaised: b.auto,
+    source: 'estimate',
   };
 }
 
-module.exports = { summarize, sessionBlocks, weekStart, blank, observedMaxima };
+/**
+ * Overlay the real percentages from the official source onto a summary.
+ *
+ * Only the two percentages and their reset times are replaced. Tokens, cost and
+ * every breakdown stay local — the endpoint does not carry them, and they were
+ * never estimates in the first place.
+ *
+ * Returns a new object, and a failed or partial fetch leaves the estimate
+ * untouched, so this is always safe to call.
+ */
+function applyOfficial(sum, official) {
+  if (!official || !official.ok) return sum;
+
+  const out = { ...sum, session: { ...sum.session }, week: { ...sum.week } };
+  let any = false;
+
+  if (official.session) {
+    out.session.pct = official.session.pct;
+    out.session.official = true;
+    if (official.session.resetsAt) {
+      out.session.end = official.session.resetsAt;
+      out.session.resetsIn = official.session.resetsAt - sum.now;
+      out.session.active = out.session.resetsIn > 0;
+    }
+    any = true;
+  }
+  if (official.week) {
+    out.week.pct = official.week.pct;
+    out.week.official = true;
+    if (official.week.resetsAt) {
+      out.week.end = official.week.resetsAt;
+      out.week.resetsIn = official.week.resetsAt - sum.now;
+    }
+    any = true;
+  }
+
+  if (any) {
+    out.source = official.stale ? 'official-stale' : 'official';
+    out.officialAt = official.at;
+  }
+  return out;
+}
+
+module.exports = { summarize, applyOfficial, sessionBlocks, weekStart, blank, observedMaxima };

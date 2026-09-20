@@ -70,4 +70,19 @@ function calibrationFor(settings, scope, usedUsd, observedPct) {
   return Math.min(50, Math.max(0.02, k));
 }
 
-module.exports = { PLANS, SESSION_HOURS, budgets, calibrationFor };
+/**
+ * Derive the calibration factor from a percentage the server reported.
+ *
+ * One successful fetch pins the estimate to reality permanently: if the private
+ * endpoint later breaks or is turned off, the local numbers stay accurate
+ * instead of falling back to a guess.
+ *
+ * Ignored below 15%, where a small absolute error in the reported percentage
+ * swings the implied budget wildly.
+ */
+function calibrationFromOfficial(settings, scope, usedUsd, officialPct) {
+  if (!(officialPct >= 15) || !(usedUsd > 0)) return null;
+  return calibrationFor(settings, scope, usedUsd, officialPct);
+}
+
+module.exports = { PLANS, SESSION_HOURS, budgets, calibrationFor, calibrationFromOfficial };

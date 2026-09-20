@@ -5,15 +5,16 @@ const fs = require('fs');
 
 const { Store } = require('./store');
 const { Reader } = require('./reader');
-const { summarize } = require('./aggregate');
-const { calibrationFor } = require('./plans');
+const { summarize, applyOfficial } = require('./aggregate');
+const { calibrationFor, calibrationFromOfficial } = require('./plans');
+const { OfficialSource } = require('./official');
 const { BadgeRenderer } = require('./badge');
 const { transcriptRoots } = require('./paths');
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'api.js');
 
-let store, reader, badge, tray;
+let store, reader, badge, tray, officialSource;
 let popupWin = null, overlayWin = null, settingsWin = null;
 let latest = null;
 let tickTimer = null;
@@ -31,11 +32,39 @@ async function tick() {
     console.error('[scan] failed:', err.message);
     return;
   }
-  latest = summarize(entries, s, Date.now());
+  const base = summarize(entries, s, Date.now());
+
+  // The official source is opt-in and never fatal: any failure leaves the
+  // local estimate in place and is reported through the settings window.
+  let official = null;
+  if (s.officialSource) {
+    official = await officialSource.get();
+    if (official && official.ok && s.officialCalibrate) calibrateFrom(official, base);
+  }
+
+  latest = applyOfficial(base, official);
+  latest.officialError = official && !official.ok ? official.error : null;
   latest.hasData = entries.length > 0;
   latest.roots = transcriptRoots(s.extraRoots);
   await paintTray();
   broadcast();
+}
+
+/**
+ * Pin the local estimate to a percentage the server reported, so the numbers
+ * stay right even if the endpoint later breaks or gets switched off.
+ * Prefers the weekly window: it moves slowly, so its implied budget is stable.
+ */
+function calibrateFrom(official, base) {
+  const s = store.get();
+  for (const scope of ['week', 'session']) {
+    const w = official[scope];
+    if (!w) continue;
+    const k = calibrationFromOfficial(s, scope, base[scope].cost, w.pct);
+    if (k == null) continue;
+    if (Math.abs(k - (s.calibration || 1)) > 0.01) store.set({ calibration: k });
+    return;
+  }
 }
 
 function broadcast() {
@@ -319,7 +348,21 @@ function createTray() {
 
 function registerIpc() {
   ipcMain.handle('usage:get', () => latest);
-  ipcMain.handle('usage:refresh', async () => { await tick(); return latest; });
+  ipcMain.handle('usage:refresh', async () => {
+    if (store.get().officialSource) await officialSource.get({ force: true });
+    await tick();
+    return latest;
+  });
+
+  // Lets Settings test the connection without waiting for the poll interval.
+  ipcMain.handle('official:test', async () => {
+    officialSource.reset();
+    const r = await officialSource.get({ force: true });
+    await tick();
+    return r && r.ok
+      ? { ok: true, session: r.session, week: r.week }
+      : { ok: false, error: (r && r.error) || 'Falhou.' };
+  });
 
   ipcMain.handle('settings:get', () => store.get());
 
@@ -340,6 +383,9 @@ function registerIpc() {
       createOverlay();
     }
     if ('refreshSeconds' in patch) restartTimer();
+    // Turning the official source on or off should take effect immediately,
+    // not after the backoff from a previous failure has elapsed.
+    if ('officialSource' in patch) officialSource.reset();
     if ('extraRoots' in patch) {
       reader.files.clear();
       reader.seen.clear();
@@ -402,6 +448,7 @@ if (!app.requestSingleInstanceLock()) {
     store = new Store();
     reader = new Reader({ retentionDays: 45 });
     badge = new BadgeRenderer();
+    officialSource = new OfficialSource();
 
     registerIpc();
     createTray();

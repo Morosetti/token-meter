@@ -55,6 +55,43 @@ então enquanto você nunca chegou perto do limite, o orçamento fica conservado
 a porcentagem lida um pouco alta. Para cravar o número exato, use a calibração
 manual abaixo.
 
+### Fonte oficial (opcional, desligada por padrão)
+
+Existe um jeito de ter o número **exato**: perguntar ao servidor. Em
+Configurações → Fonte oficial, o app passa a consultar o mesmo endpoint que a
+CLI usa, com a credencial de login que ela já guardou nesta máquina.
+
+```
+GET https://api.anthropic.com/api/oauth/usage
+Authorization: Bearer <credencial>
+anthropic-beta: oauth-2025-04-20
+
+-> { five_hour: { utilization, resets_at }, seven_day: { ... }, ... }
+```
+
+`utilization` é fração (0..1). Esse contrato não veio de documentação — não
+existe nenhuma. Foi recuperado lendo o código de requisição do próprio binário
+da CLI.
+
+**Por que fica desligada por padrão.** O endpoint não é documentado e pode
+mudar ou sumir em qualquer atualização. Ligar é aceitar esse risco.
+
+**O que o app faz com sua credencial.** Lê o arquivo, usa em uma requisição,
+e só. Nunca grava, nunca copia, nunca envia para outro lugar, nunca escreve no
+arquivo de credenciais. Se ela expirar, o app avisa e volta para a estimativa —
+quem renova é a CLI, rodando uma vez. Renovar aqui significaria mexer no
+arquivo de que o seu login depende, e isso não é da conta deste app.
+
+**Falhar é inofensivo.** Timeout de 5s, no máximo uma consulta por minuto, e
+15 minutos de espera após erro de autenticação para não martelar o servidor.
+Qualquer falha cai de volta na estimativa local, e o rodapé do painel diz de
+onde veio cada número.
+
+**Ela também conserta a estimativa.** Com "Calibrar a estimativa com ela"
+ligado, uma única consulta bem-sucedida ajusta o fator local de vez. Se o
+endpoint quebrar meses depois, seus números continuam certos em vez de voltar
+ao chute.
+
 ### Na prática
 
 - A porcentagem é **estimativa**. Para cravar: **Configurações → Plano →
