@@ -37,8 +37,16 @@ const TIMEOUT_MS = 5000;
 
 /** Server-side rate limiting is real; never poll faster than this. */
 const MIN_INTERVAL_MS = 60_000;
-/** After an auth failure, stop hammering: the token will not fix itself. */
+/**
+ * Floor for a user-initiated fetch. A manual click should feel immediate, but
+ * "manual" is not a licence to bypass the limiter: holding down the refresh
+ * button must not turn into a burst of requests.
+ */
+const FORCE_FLOOR_MS = 10_000;
+/** After an auth failure, stop hammering: the credential will not fix itself. */
 const AUTH_BACKOFF_MS = 15 * 60_000;
+/** Fallback wait when the server rate-limits us without a Retry-After. */
+const RATE_LIMIT_BACKOFF_MS = 60_000;
 
 const SESSION_KEYS = ['five_hour'];
 const WEEK_KEYS = ['seven_day', 'seven_day_overage_included', 'seven_day_opus', 'seven_day_sonnet'];
@@ -119,7 +127,8 @@ async function safeErrorMessage(res) {
 class OfficialSource {
   constructor() {
     this.last = null;        // last successful result
-    this.lastAt = 0;
+    this.lastAt = 0;         // when that success happened
+    this.lastAttemptAt = 0;  // when we last hit the network, success or not
     this.error = null;
     this.blockedUntil = 0;
     this.inFlight = null;
@@ -128,8 +137,16 @@ class OfficialSource {
   /** True when a fetch would actually go out right now. */
   _due(force) {
     if (Date.now() < this.blockedUntil) return false;
-    if (force) return true;
-    return Date.now() - this.lastAt >= MIN_INTERVAL_MS;
+    // Throttle on the last *attempt*, not the last success. Keying off success
+    // would leave a failing endpoint completely unthrottled, which is exactly
+    // the case where backing off matters most.
+    const since = Date.now() - this.lastAttemptAt;
+    return since >= (force ? FORCE_FLOOR_MS : MIN_INTERVAL_MS);
+  }
+
+  /** Seconds left on a server-imposed wait, or 0. */
+  waitingSeconds() {
+    return Math.max(0, Math.ceil((this.blockedUntil - Date.now()) / 1000));
   }
 
   /**
@@ -138,9 +155,10 @@ class OfficialSource {
    */
   async get({ force = false } = {}) {
     if (!this._due(force)) {
+      const wait = this.waitingSeconds();
       return this.last
-        ? { ...this.last, stale: Date.now() - this.lastAt > MIN_INTERVAL_MS }
-        : { ok: false, error: this.error };
+        ? { ...this.last, stale: Date.now() - this.lastAt > MIN_INTERVAL_MS, error: this.error }
+        : { ok: false, error: this.error, waitingSeconds: wait };
     }
     // Collapse concurrent callers onto one request.
     if (this.inFlight) return this.inFlight;
@@ -158,6 +176,7 @@ class OfficialSource {
       return { ok: false, error: this.error };
     }
     const token = cred.token;
+    this.lastAttemptAt = Date.now();
 
     try {
       const res = await fetch(URL, {
@@ -181,6 +200,21 @@ class OfficialSource {
         this.blockedUntil = Date.now() + AUTH_BACKOFF_MS;
         return { ok: false, error: this.error };
       }
+      if (res.status === 429) {
+        // The server is asking us to slow down. It usually says for how long,
+        // and ignoring that is what turns one 429 into a stream of them.
+        const retryAfter = Number(res.headers.get('retry-after'));
+        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 30 * 60_000)
+          : RATE_LIMIT_BACKOFF_MS;
+        this.blockedUntil = Date.now() + waitMs;
+        this.error = 'Muitas consultas ao servidor. Nova tentativa em '
+          + Math.ceil(waitMs / 1000) + 's.';
+        return this.last
+          ? { ...this.last, stale: true, error: this.error }
+          : { ok: false, error: this.error, waitingSeconds: Math.ceil(waitMs / 1000) };
+      }
+
       if (!res.ok) {
         this.error = 'Servidor respondeu ' + res.status + '.';
         return this.last ? { ...this.last, stale: true, error: this.error } : { ok: false, error: this.error };
@@ -208,6 +242,12 @@ class OfficialSource {
     }
   }
 
+  /**
+   * Clear cached state so the next call goes out fresh.
+   * `lastAttemptAt` deliberately survives: the floor between network calls is
+   * about being a good citizen to the server, and a reset must not be a way to
+   * sidestep it.
+   */
   reset() {
     this.last = null;
     this.lastAt = 0;
