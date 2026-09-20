@@ -1,0 +1,123 @@
+/* Shared shell for every window. Warm dark palette. */
+:root {
+  --bg: #262624;
+  --bg-sunk: #1f1e1d;
+  --bg-raise: #30302e;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --text: #faf9f5;
+  --muted: #a3a099;
+  --faint: #8f8c85;
+  --accent: #d97757;
+  --accent-strong: #bd5738;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 14px;
+  --font: -apple-system, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", ui-monospace, "Consolas", monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #faf9f5;
+  --bg-sunk: #ffffff;
+  --bg-raise: #f0eee7;
+  --line: rgba(0, 0, 0, 0.10);
+  --line-strong: rgba(0, 0, 0, 0.18);
+  --text: #1f1e1d;
+  --muted: #6b6862;
+  --faint: #75726b;
+  --accent-strong: #a8462c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font);
+  color: var(--text);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* --- meters ------------------------------------------------------------- */
+
+.meter { margin-bottom: 14px; }
+
+.meter-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.meter-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.meter-pct {
+  font-size: 19px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.track {
+  position: relative;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--bg-raise);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 99px;
+  /* Width and colour are set from JS; the transition keeps ticks from
+     snapping, which reads as jitter on a always-visible widget. */
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1), background-color 420ms ease;
+}
+
+/* Past 100% the bar is full and the overflow is striped rather than clipped,
+   so an over-budget state stays visually distinct from an exactly-full one. */
+.track.over .fill {
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(0, 0, 0, 0.26) 0 5px,
+    transparent 5px 10px
+  );
+}
+
+.meter-sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.is-ok { color: var(--ok); }
+.is-warn { color: var(--warn); }
+.is-danger { color: var(--danger); }
+
+.drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }

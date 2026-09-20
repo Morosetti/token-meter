@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
+<title>Configuracoes</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background: var(--bg); display: flex; flex-direction: column; }
+
+  header {
+    display: flex; align-items: center; gap: 9px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+    -webkit-app-region: drag;
+  }
+  .logo { width: 9px; height: 9px; border-radius: 3px; background: var(--accent); }
+  .title { font-size: 13px; font-weight: 650; }
+  .close {
+    margin-left: auto; -webkit-app-region: no-drag;
+    width: 26px; height: 26px; border-radius: 7px;
+    display: grid; place-items: center; color: var(--muted);
+  }
+  .close:hover { background: var(--bg-raise); color: var(--text); }
+
+  main { flex: 1; overflow-y: auto; padding: 6px 16px 20px; }
+  main::-webkit-scrollbar { width: 9px; }
+  main::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; }
+
+  h2 {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--faint);
+    margin: 20px 0 8px;
+  }
+
+  .field {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .field:last-child { border-bottom: 0; }
+  .field label { flex: 1; font-size: 12.5px; }
+  .field .hint { display: block; font-size: 11.5px; color: var(--faint); margin-top: 2px; line-height: 1.45; }
+
+  select, input[type="number"], input[type="text"] {
+    font: inherit; font-size: 12px;
+    color: var(--text); background: var(--bg-sunk);
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 5px 8px; min-width: 76px;
+  }
+  select { min-width: 132px; }
+  input[type="number"] { width: 74px; text-align: right; font-variant-numeric: tabular-nums; }
+  select:focus-visible, input:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+
+  input[type="range"] { width: 132px; accent-color: var(--accent); }
+
+  /* Switch */
+  .sw {
+    flex: none; width: 38px; height: 22px; border-radius: 99px;
+    background: var(--bg-raise); border: 1px solid var(--line-strong);
+    position: relative; transition: background-color 160ms ease;
+  }
+  .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 99px; background: var(--muted);
+    transition: transform 160ms cubic-bezier(.22,1,.36,1), background-color 160ms ease;
+  }
+  .sw[aria-checked="true"] { background: var(--accent); border-color: transparent; }
+  .sw[aria-checked="true"]::after { transform: translateX(16px); background: #fff; }
+
+  .btn {
+    font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 8px;
+    background: var(--bg-raise); border: 1px solid var(--line-strong);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent-strong); border-color: transparent; color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); color: #fff; }
+  .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  .callout {
+    background: var(--bg-sunk); border: 1px solid var(--line);
+    border-radius: 11px; padding: 12px; margin-top: 8px;
+  }
+  .callout p { margin: 0 0 10px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .callout .row { display: flex; align-items: center; gap: 8px; }
+  .callout .row span { font-size: 12px; }
+  .now {
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px; color: var(--faint); margin-top: 8px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo"></span>
+  <span class="title">Configuracoes</span>
+  <button class="close" id="close" aria-label="Fechar">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </svg>
+  </button>
+</header>
+
+<main>
+  <h2>Plano</h2>
+  <div class="field">
+    <label for="plan">Seu plano
+      <span class="hint">Define o orcamento estimado das janelas de 5h e semanal.</span>
+    </label>
+    <select id="plan">
+      <option value="pro">Pro</option>
+      <option value="max5">Max 5x</option>
+      <option value="max20">Max 20x</option>
+      <option value="custom">Personalizado</option>
+    </select>
+  </div>
+  <div class="field" id="custom-row" hidden>
+    <label>Orcamento personalizado
+      <span class="hint">Valor equivalente de API (USD) por janela de 5h e por semana.</span>
+    </label>
+    <input type="number" id="customSession" min="0.5" step="0.5" aria-label="Orcamento por sessao">
+    <input type="number" id="customWeek" min="1" step="5" aria-label="Orcamento semanal">
+  </div>
+
+  <div class="callout">
+    <p><strong>Calibrar.</strong> Estes numeros sao estimativa: os limites reais ficam no
+    servidor. Abra o app oficial, veja a porcentagem que ele mostra e
+    digite aqui &mdash; o orcamento se reajusta para bater com ele.</p>
+    <div class="row">
+      <select id="calScope" aria-label="Qual janela calibrar">
+        <option value="session">Sessao 5h</option>
+        <option value="week">Semana</option>
+      </select>
+      <span>mostra</span>
+      <input type="number" id="calPct" min="1" max="100" step="1" placeholder="55" aria-label="Porcentagem observada">
+      <span>%</span>
+      <button class="btn primary" id="calApply">Aplicar</button>
+    </div>
+    <div class="now" id="calNow"></div>
+  </div>
+
+  <div class="field">
+    <label for="weekMode">Janela semanal</label>
+    <select id="weekMode">
+      <option value="rolling">Ultimos 7 dias</option>
+      <option value="fixed">Reset fixo</option>
+    </select>
+  </div>
+  <div class="field" id="weekFixed" hidden>
+    <label>Dia e hora do reset</label>
+    <select id="weekResetDay" aria-label="Dia do reset">
+      <option value="0">Domingo</option><option value="1">Segunda</option>
+      <option value="2">Terca</option><option value="3">Quarta</option>
+      <option value="4">Quinta</option><option value="5">Sexta</option>
+      <option value="6">Sabado</option>
+    </select>
+    <input type="number" id="weekResetHour" min="0" max="23" step="1" aria-label="Hora do reset">
+  </div>
+
+  <h2>Icone na bandeja</h2>
+  <div class="field">
+    <label for="badgeMetric">Mostrar</label>
+    <select id="badgeMetric">
+      <option value="max">Maior dos dois</option>
+      <option value="session">Sessao 5h</option>
+      <option value="week">Semana</option>
+      <option value="today">Hoje</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="badgeStyle">Estilo</label>
+    <select id="badgeStyle">
+      <option value="ring">Anel</option>
+      <option value="bar">Barra</option>
+      <option value="dot">Ponto</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="badgeShowNumber">Numero dentro do anel
+      <span class="hint">Acima de 100% vira um ponto solido &mdash; tres digitos nao cabem em 16px.</span>
+    </label>
+    <button class="sw" id="badgeShowNumber" role="switch" aria-checked="false"></button>
+  </div>
+
+  <h2>Overlay flutuante</h2>
+  <div class="field">
+    <label for="overlayEnabled">Sempre visivel na tela</label>
+    <button class="sw" id="overlayEnabled" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label for="overlayCompact">Modo compacto
+      <span class="hint">Uma linha so, com a janela mais critica.</span>
+    </label>
+    <button class="sw" id="overlayCompact" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label for="overlayAlwaysOnTop">Acima de tudo</label>
+    <button class="sw" id="overlayAlwaysOnTop" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label for="overlayClickThrough">Ignorar cliques
+      <span class="hint">O mouse atravessa o overlay. Desligue para poder arrastar.</span>
+    </label>
+    <button class="sw" id="overlayClickThrough" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label for="overlayOpacity">Opacidade</label>
+    <input type="range" id="overlayOpacity" min="25" max="100" step="5">
+  </div>
+
+  <h2>Geral</h2>
+  <div class="field">
+    <label for="theme">Tema</label>
+    <select id="theme"><option value="dark">Escuro</option><option value="light">Claro</option></select>
+  </div>
+  <div class="field">
+    <label for="refreshSeconds">Intervalo de atualizacao
+      <span class="hint">Alem disso, o app reage na hora quando um transcript muda.</span>
+    </label>
+    <input type="number" id="refreshSeconds" min="5" max="600" step="5">
+  </div>
+  <div class="field">
+    <label>Cores de alerta
+      <span class="hint">Porcentagens em que o icone fica ambar e depois vermelho.</span>
+    </label>
+    <input type="number" id="warnAt" min="1" max="100" aria-label="Limite ambar">
+    <input type="number" id="dangerAt" min="1" max="150" aria-label="Limite vermelho">
+  </div>
+  <div class="field">
+    <label for="launchAtLogin">Iniciar com o sistema</label>
+    <button class="sw" id="launchAtLogin" role="switch" aria-checked="false"></button>
+  </div>
+  <div class="field">
+    <label>Restaurar padroes
+      <span class="hint">Apaga a calibracao e todas as preferencias.</span>
+    </label>
+    <button class="btn danger" id="reset">Restaurar</button>
+  </div>
+
+  <div class="now" id="sources"></div>
+</main>
+
+<script src="format.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

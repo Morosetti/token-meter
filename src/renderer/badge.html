@@ -1,0 +1,89 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>badge</title>
+<body style="margin:0;background:transparent">
+<canvas id="c"></canvas>
+<script>
+/**
+ * Rasterise the tray icon. Returns a PNG data URL.
+ * Called from the main process via webContents.executeJavaScript.
+ */
+function drawBadge(o) {
+  const S = o.size || 32;
+  const c = document.getElementById('c');
+  c.width = S; c.height = S;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, S, S);
+
+  const pct = Math.max(0, Math.min(100, o.pct || 0));
+  const over = (o.pct || 0) > 100;
+  const color = o.color || '#4ade80';
+  const dim = o.dim || 'rgba(255,255,255,0.20)';
+
+  if (o.style === 'dot') {
+    g.beginPath();
+    g.arc(S / 2, S / 2, S * 0.34, 0, Math.PI * 2);
+    g.fillStyle = color;
+    g.fill();
+    return c.toDataURL('image/png');
+  }
+
+  if (o.style === 'bar') {
+    const h = Math.round(S * 0.30);
+    const y = Math.round((S - h) / 2);
+    const r = h / 2;
+    roundRect(g, 1, y, S - 2, h, r); g.fillStyle = dim; g.fill();
+    const w = Math.max(h, Math.round((S - 2) * pct / 100));
+    roundRect(g, 1, y, w, h, r); g.fillStyle = color; g.fill();
+    return c.toDataURL('image/png');
+  }
+
+  // Default: a ring, filled clockwise from 12 o'clock.
+  const lw = Math.max(2, S * 0.13);
+  const r = S / 2 - lw / 2 - 1;
+  const cx = S / 2, cy = S / 2;
+
+  g.lineWidth = lw;
+  g.lineCap = 'butt';
+  g.strokeStyle = dim;
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+
+  if (pct > 0) {
+    g.strokeStyle = color;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * pct) / 100);
+    g.stroke();
+  }
+
+  if (o.showNumber) {
+    // ">99" never fits legibly at 16px, so past the century mark we draw a
+    // solid centre dot instead and let the ring colour carry the alarm.
+    const shown = over ? null : Math.round(o.pct || 0);
+    if (shown === null) {
+      g.beginPath(); g.arc(cx, cy, S * 0.16, 0, Math.PI * 2);
+      g.fillStyle = color; g.fill();
+    } else {
+      const txt = String(shown);
+      const size = txt.length >= 3 ? S * 0.40 : S * 0.50;
+      g.font = '600 ' + size + 'px -apple-system, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillStyle = o.text || '#ffffff';
+      g.fillText(txt, cx, cy + size * 0.06);
+    }
+  }
+  return c.toDataURL('image/png');
+}
+
+function roundRect(g, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+</script>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
+<title>TokenMeter Overlay</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { padding: 4px; }
+
+  .shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px 11px;
+    border-radius: 13px;
+    /* Deliberately near-opaque: a usage meter parked over an editor has to
+       stay readable against whatever is behind it. */
+    background: rgba(31, 30, 29, 0.93);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.42);
+    -webkit-app-region: drag;
+  }
+  :root[data-theme="light"] .shell {
+    background: rgba(250, 249, 245, 0.95);
+    border-color: rgba(0, 0, 0, 0.14);
+  }
+
+  .line { display: flex; align-items: center; gap: 7px; }
+  .tag {
+    flex: none; width: 30px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+  .bar { flex: 1; height: 6px; border-radius: 99px; background: var(--bg-raise); overflow: hidden; }
+  .bar i {
+    display: block; height: 100%; border-radius: 99px;
+    transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1), background-color 420ms ease;
+  }
+  .bar.over i {
+    background-image: repeating-linear-gradient(115deg, rgba(0,0,0,.26) 0 5px, transparent 5px 10px);
+  }
+  .num {
+    flex: none; width: 38px; text-align: right;
+    font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .foot {
+    display: flex; justify-content: space-between;
+    font-size: 9.5px; color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Compact layout: one row, the worse of the two numbers. */
+  body.compact .shell { flex-direction: row; align-items: center; gap: 8px; }
+  body.compact .foot, body.compact .line.secondary { display: none; }
+  body.compact .tag { width: auto; }
+  /* In row mode the .line would shrink to its content and collapse the
+     flex:1 bar to zero width, so it has to grow explicitly. */
+  body.compact .line { flex: 1; min-width: 0; }
+  body.compact .num { font-size: 14px; width: 42px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="line" id="l-session">
+    <span class="tag">5H</span>
+    <span class="bar"><i></i></span>
+    <span class="num">0%</span>
+  </div>
+  <div class="line secondary" id="l-week">
+    <span class="tag">SEM</span>
+    <span class="bar"><i></i></span>
+    <span class="num">0%</span>
+  </div>
+  <div class="foot">
+    <span id="f-cost">$0.00</span>
+    <span id="f-reset">--</span>
+  </div>
+</div>
+<script src="format.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>

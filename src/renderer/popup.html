@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
+<title>TokenMeter</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { padding: 8px; }
+
+  .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 15px 11px;
+    border-bottom: 1px solid var(--line);
+  }
+  .logo {
+    width: 9px; height: 9px; border-radius: 3px;
+    background: var(--accent); flex: none;
+  }
+  .title { font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
+  .plan {
+    margin-left: auto;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg-raise);
+    border-radius: 99px;
+    padding: 3px 8px;
+  }
+  .icon-btn {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: grid; place-items: center;
+    color: var(--muted);
+  }
+  .icon-btn:hover { background: var(--bg-raise); color: var(--text); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  .body { flex: 1; overflow-y: auto; padding: 14px 15px 4px; }
+  .body::-webkit-scrollbar { width: 8px; }
+  .body::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; }
+
+  .section-label {
+    font-size: 10px; font-weight: 650; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--faint);
+    margin: 16px 0 9px;
+  }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--line); border-radius: 10px; overflow: hidden;
+  }
+  .stat { background: var(--bg-sunk); padding: 9px 10px; }
+  .stat-k { font-size: 10px; color: var(--faint); margin-bottom: 3px; }
+  .stat-v { font-size: 14px; font-weight: 620; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+  .row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 0; font-size: 12px;
+  }
+  .row-name { flex: none; width: 88px; color: var(--muted); }
+  .row-name.wide { width: 112px; }
+  .row-bar { flex: 1; height: 5px; border-radius: 99px; background: var(--bg-raise); overflow: hidden; }
+  .row-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+  .row-val {
+    flex: none; width: 54px; text-align: right;
+    font-variant-numeric: tabular-nums; color: var(--muted);
+  }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+  .spark div {
+    flex: 1; min-height: 2px; border-radius: 2px 2px 0 0;
+    background: var(--bg-raise);
+  }
+  .spark div.hot { background: var(--accent); }
+  .spark-axis {
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--faint); margin-top: 5px;
+  }
+
+  footer {
+    padding: 9px 15px 11px;
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; gap: 9px;
+    font-size: 10.5px; color: var(--faint);
+  }
+  .link { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+  .link:hover { color: var(--accent); }
+
+  .empty { padding: 34px 18px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <header>
+    <span class="logo"></span>
+    <span class="title">TokenMeter</span>
+    <span class="plan" id="plan">--</span>
+    <button class="icon-btn" id="refresh" title="Atualizar agora" aria-label="Atualizar agora">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="settings" title="Configuracoes" aria-label="Configuracoes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="body" id="body">
+    <div id="empty" class="empty" hidden>
+      Nenhum transcript encontrado.<br>
+      Use a CLI uma vez e o medidor aparece aqui.
+    </div>
+
+    <div id="content">
+      <div class="meter" id="m-session">
+        <div class="meter-top">
+          <span class="meter-name">SESSAO 5H</span>
+          <span class="meter-pct">0%</span>
+        </div>
+        <div class="track"><div class="fill"></div></div>
+        <div class="meter-sub">
+          <span id="s-cost">$0.00</span>
+          <span id="s-reset">sem sessao ativa</span>
+        </div>
+      </div>
+
+      <div class="meter" id="m-week">
+        <div class="meter-top">
+          <span class="meter-name" id="w-label">SEMANA</span>
+          <span class="meter-pct">0%</span>
+        </div>
+        <div class="track"><div class="fill"></div></div>
+        <div class="meter-sub">
+          <span id="w-cost">$0.00</span>
+          <span id="w-reset"></span>
+        </div>
+      </div>
+
+      <div class="section-label">Hoje</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-k">Custo equiv.</div><div class="stat-v" id="t-cost">$0.00</div></div>
+        <div class="stat"><div class="stat-k">Tokens</div><div class="stat-v" id="t-tokens">0</div></div>
+        <div class="stat"><div class="stat-k">Chamadas</div><div class="stat-v" id="t-calls">0</div></div>
+      </div>
+
+      <div class="section-label">Por modelo (semana)</div>
+      <div id="models"></div>
+
+      <div class="section-label">Por projeto (semana)</div>
+      <div id="projects"></div>
+
+      <div class="section-label">Ultimos 14 dias</div>
+      <div class="spark" id="spark"></div>
+      <div class="spark-axis"><span id="spark-from"></span><span>hoje</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <span id="foot">Estimativa a partir dos transcripts locais</span>
+    <button class="link no-drag" id="calib" style="margin-left:auto">Calibrar</button>
+  </footer>
+</div>
+
+<script src="format.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

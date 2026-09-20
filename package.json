@@ -1,0 +1,63 @@
+{
+  "name": "token-meter",
+  "productName": "TokenMeter",
+  "version": "1.0.0",
+  "description": "Medidor de uso de tokens (diario e semanal) na bandeja do sistema.",
+  "main": "src/main/index.js",
+  "license": "MIT",
+  "author": "Morosetti",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Morosetti/token-meter.git"
+  },
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "preview": "node preview/build-preview.js",
+    "icon": "node assets/make-icon.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.morosetti.tokenmeter",
+    "productName": "TokenMeter",
+    "directories": { "output": "release" },
+    "files": [
+      "src/**/*",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TokenMeter",
+      "runAfterFinish": true
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.developer-tools",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  }
+}
