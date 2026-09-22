@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -168,7 +168,48 @@ function restartTimer() {
 /* --------------------------------------------------------------- windows -- */
 
 function baseWebPrefs() {
-  return { preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: false };
+  return {
+    preload: PRELOAD,
+    contextIsolation: true,
+    nodeIntegration: false,
+    // The preload only needs contextBridge and ipcRenderer, both of which work
+    // in a sandboxed preload, so there is no reason to give the renderers an
+    // unsandboxed process.
+    sandbox: true,
+    nodeIntegrationInWorker: false,
+    nodeIntegrationInSubFrames: false,
+    webviewTag: false,
+    spellcheck: false,
+  };
+}
+
+/**
+ * Every window here renders local files only and talks to exactly one host.
+ * Navigating away, opening a window, or attaching a webview is therefore always
+ * either a bug or an attack, so none of them are allowed to happen.
+ */
+function lockDownNavigation(win) {
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  win.webContents.on('will-navigate', (event, url) => {
+    const current = win.webContents.getURL();
+    if (url !== current) {
+      event.preventDefault();
+      console.warn('[security] blocked navigation to', sanitizeForLog(url));
+    }
+  });
+
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+
+  // A renderer has no business asking for camera, notifications or anything
+  // else; the app is a meter that reads local files.
+  win.webContents.session.setPermissionRequestHandler((_wc, _perm, callback) => callback(false));
+  win.webContents.session.setPermissionCheckHandler(() => false);
+}
+
+/** Keep a hostile URL from spilling anything odd into the log. */
+function sanitizeForLog(url) {
+  return String(url).replace(/[^\x20-\x7e]/g, '').slice(0, 120);
 }
 
 function createPopup() {
@@ -180,6 +221,7 @@ function createPopup() {
     backgroundColor: process.platform === 'linux' ? '#12100e' : '#00000000',
     webPreferences: baseWebPrefs(),
   });
+  lockDownNavigation(popupWin);
   popupWin.loadFile(path.join(RENDERER, 'popup.html'));
   popupWin.on('blur', () => {
     if (popupWin && !popupWin.webContents.isDevToolsOpened()) popupWin.hide();
@@ -245,6 +287,7 @@ function createOverlay() {
   }
 
   applyOverlayFlags();
+  lockDownNavigation(overlayWin);
   overlayWin.loadFile(path.join(RENDERER, 'overlay.html'));
   overlayWin.once('ready-to-show', () => { overlayWin.show(); broadcast(); });
   overlayWin.on('moved', () => {
@@ -286,6 +329,7 @@ function openSettings() {
     backgroundColor: '#12100e',
     webPreferences: baseWebPrefs(),
   });
+  lockDownNavigation(settingsWin);
   settingsWin.loadFile(path.join(RENDERER, 'settings.html'));
   settingsWin.once('ready-to-show', () => { settingsWin.show(); broadcast(); });
   settingsWin.on('closed', () => { settingsWin = null; });
@@ -428,11 +472,9 @@ function registerIpc() {
     if (w === popupWin) w.hide(); else w.close();
   });
 
-  ipcMain.on('app:quit', () => app.quit());
-
-  ipcMain.on('app:open-external', (_e, url) => {
-    if (typeof url === 'string' && /^https?:\/\//.test(url)) shell.openExternal(url);
-  });
+  // Nothing else is exposed. Quitting is done from the tray menu, and there is
+  // no channel that opens a URL: the UI never needed one, and an app that can
+  // be asked to launch an arbitrary link is a worse app than one that cannot.
 }
 
 /* ------------------------------------------------------------ lifecycle -- */

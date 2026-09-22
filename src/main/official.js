@@ -31,7 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const { configDir } = require('./paths');
 
-const URL = 'https://api.anthropic.com/api/oauth/usage';
+const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
 const BETA = 'oauth-2025-04-20';
 const TIMEOUT_MS = 5000;
 
@@ -45,6 +45,8 @@ const MIN_INTERVAL_MS = 60_000;
 const FORCE_FLOOR_MS = 10_000;
 /** After an auth failure, stop hammering: the credential will not fix itself. */
 const AUTH_BACKOFF_MS = 15 * 60_000;
+/** A usage payload is a few hundred bytes; anything near this is not one. */
+const MAX_BODY_BYTES = 256 * 1024;
 /** Fallback wait when the server rate-limits us without a Retry-After. */
 const RATE_LIMIT_BACKOFF_MS = 60_000;
 
@@ -179,13 +181,19 @@ class OfficialSource {
     this.lastAttemptAt = Date.now();
 
     try {
-      const res = await fetch(URL, {
+      const res = await fetch(ENDPOINT, {
         method: 'GET',
         headers: {
           Authorization: 'Bearer ' + token,
           'anthropic-beta': BETA,
           'Content-Type': 'application/json',
         },
+        // The real endpoint never redirects. Following one would mean sending
+        // the credential somewhere it was not meant for, so treat it as an
+        // error instead. (Node strips the Authorization header on a
+        // cross-origin redirect, but a same-host one would keep it, and
+        // neither case is a shape this app should accept.)
+        redirect: 'error',
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
 
@@ -220,7 +228,27 @@ class OfficialSource {
         return this.last ? { ...this.last, stale: true, error: this.error } : { ok: false, error: this.error };
       }
 
-      const body = await res.json();
+      // A usage payload is a few hundred bytes. Parsing an unbounded body from
+      // the network into memory is never something this app needs to do.
+      const declared = Number(res.headers.get('content-length'));
+      if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+        this.error = 'Resposta grande demais (' + declared + ' bytes).';
+        return { ok: false, error: this.error };
+      }
+      const text = await res.text();
+      if (text.length > MAX_BODY_BYTES) {
+        this.error = 'Resposta grande demais.';
+        return { ok: false, error: this.error };
+      }
+
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        this.error = 'Resposta nao e JSON valido.';
+        return { ok: false, error: this.error };
+      }
+
       const session = pickWindow(body, SESSION_KEYS);
       const week = pickWindow(body, WEEK_KEYS);
 

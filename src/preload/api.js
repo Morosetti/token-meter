@@ -17,8 +17,6 @@ contextBridge.exposeInMainWorld('usage', {
 
   openSettings: () => ipcRenderer.send('window:settings'),
   closeSelf: () => ipcRenderer.send('window:close-self'),
-  quit: () => ipcRenderer.send('app:quit'),
-  openExternal: (url) => ipcRenderer.send('app:open-external', url),
 
   // Pushed from main whenever a rescan produces new numbers.
   onUpdate: (fn) => {
