@@ -1,7 +1,7 @@
 {
   "name": "token-meter",
   "productName": "TokenMeter",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Medidor de uso de tokens (diario e semanal) na bandeja do sistema.",
   "main": "src/main/index.js",
   "license": "MIT",

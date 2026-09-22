@@ -23,12 +23,17 @@
  * Two rules this module keeps:
  *   - The token is read, used for one request, and never logged, persisted,
  *     copied or sent anywhere except that one host.
- *   - It never writes to the credentials file. A stale token is reported so the
+ *   - It never writes to the credentials store. A stale token is reported so the
  *     user can refresh it by running the CLI; silently refreshing it here would
- *     mean mutating the file their login depends on.
+ *     mean mutating what their login depends on.
+ *
+ * Where that store lives differs by OS: a file on Windows and Linux, the
+ * Keychain on macOS.
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const { configDir } = require('./paths');
 
 const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
@@ -55,8 +60,55 @@ const WEEK_KEYS = ['seven_day', 'seven_day_overage_included', 'seven_day_opus', 
 
 class AuthError extends Error {}
 
+/** macOS stores the login in the Keychain under this account. */
+const KEYCHAIN_ACCOUNT = 'claude-code-user';
+/** Absolute path, so a hostile PATH entry cannot stand in for the real tool. */
+const SECURITY_BIN = '/usr/bin/security';
+
 /**
- * Pull the access token out of the file the CLI maintains.
+ * Reproduce the Keychain service name the CLI generates.
+ *
+ * A default install uses a bare name; a relocated config dir gets a short hash
+ * of that path appended, so several installs can coexist. This mirrors the
+ * CLI's own construction, read out of its binary — there is no documentation
+ * for it, and it is the one part of this module that could silently drift.
+ */
+function keychainService() {
+  const envDir = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR;
+  const isDefault = envDir !== undefined ? !envDir : !process.env.CLAUDE_CONFIG_DIR;
+  if (isDefault) return 'Claude Code-credentials';
+
+  const dir = (envDir !== undefined ? envDir : configDir()).normalize('NFC');
+  const hash = crypto.createHash('sha256').update(dir).digest('hex').slice(0, 8);
+  return 'Claude Code-credentials-' + hash;
+}
+
+/**
+ * Read the login blob out of the macOS Keychain.
+ *
+ * `security` is invoked with execFile and an absolute path: no shell is
+ * involved, so the service name cannot be turned into a command. macOS may
+ * still show its own prompt the first time, which is the OS asking on the
+ * user's behalf and exactly the right behaviour.
+ */
+function readFromKeychain() {
+  const service = keychainService();
+  try {
+    return execFileSync(
+      SECURITY_BIN,
+      ['find-generic-password', '-a', KEYCHAIN_ACCOUNT, '-w', '-s', service],
+      { encoding: 'utf8', timeout: 5000, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
+    ).trim();
+  } catch {
+    throw new AuthError(
+      'Nada encontrado no Keychain (servico "' + service + '"). '
+      + 'Faca login na CLI, e autorize o acesso se o macOS perguntar.');
+  }
+}
+
+/**
+ * Pull the access token out of wherever the CLI keeps it: a file on Windows and
+ * Linux, the Keychain on macOS.
  * Returns only what is needed; the caller never stores it.
  */
 function readToken() {
@@ -66,9 +118,10 @@ function readToken() {
   try {
     raw = fs.readFileSync(file, 'utf8');
   } catch {
-    throw new AuthError(process.platform === 'darwin'
-      ? 'No macOS o login fica no Keychain, nao neste arquivo. Fonte oficial indisponivel.'
-      : 'Arquivo de credenciais nao encontrado. Faca login na CLI primeiro.');
+    if (process.platform !== 'darwin') {
+      throw new AuthError('Arquivo de credenciais nao encontrado. Faca login na CLI primeiro.');
+    }
+    raw = readFromKeychain();
   }
 
   let parsed;
@@ -284,4 +337,4 @@ class OfficialSource {
   }
 }
 
-module.exports = { OfficialSource, readToken, pickWindow };
+module.exports = { OfficialSource, readToken, pickWindow, keychainService };
