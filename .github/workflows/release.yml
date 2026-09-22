@@ -1,0 +1,95 @@
+name: Release
+
+# Builds the installer for each OS on its own runner and attaches all three to
+# the release. macOS binaries can only be produced on macOS, which is the whole
+# reason this exists: electron-builder refuses to cross-compile them.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not hide whether the others work.
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win
+            pattern: release/*.exe
+          - os: macos-latest
+            target: --mac
+            pattern: release/*.dmg
+          - os: ubuntu-latest
+            target: --linux
+            pattern: release/*.AppImage
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx --no-install electron-builder ${{ matrix.target }} --publish never
+        env:
+          # There is no signing identity in CI. Without this, electron-builder
+          # hunts for one on macOS and fails the build instead of producing an
+          # unsigned artifact.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Check something was produced
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(${{ matrix.pattern }})
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no artifact matched ${{ matrix.pattern }}"
+            ls -la release/ || true
+            exit 1
+          fi
+          printf 'built: %s\n' "${files[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error
+
+  publish:
+    name: Attach to release
+    needs: build
+    runs-on: ubuntu-latest
+    # Only a tag push has a release to attach to; a manual run just builds.
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # Uses the preinstalled gh CLI rather than a third-party action, so the
+      # release path depends on nothing outside GitHub's own tooling.
+      - name: Upload installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          mapfile -t files < <(find artifacts -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' \))
+          if [ ${#files[@]} -eq 0 ]; then echo "nothing to upload"; exit 1; fi
+          printf 'uploading: %s\n' "${files[@]}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "Automated build."
+          gh release upload "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
