@@ -482,7 +482,14 @@ function registerIpc() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', togglePopup);
+  app.on('second-instance', (_event, argv) => {
+    // Launching the app again normally means the user asked for it, so show the
+    // panel. But a relaunch from a shell hook fires on every new session, and
+    // flashing the panel open each time would be the opposite of useful, so
+    // --silent means "make sure it is running, then leave me alone".
+    if (Array.isArray(argv) && argv.includes('--silent')) return;
+    togglePopup();
+  });
 
   app.whenReady().then(async () => {
     if (process.platform === 'darwin' && app.dock) app.dock.hide();
